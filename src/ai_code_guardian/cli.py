@@ -28,6 +28,10 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     scan.add_argument("--head", default=None, help="committed tip for --diff (default: HEAD)")
     scan.add_argument("--config", type=Path, metavar="FILE", help="use an explicit policy file")
     scan.add_argument(
+        "--fail-on", choices=("warning", "error"), default="warning",
+        help="lowest finding severity that returns exit code 1 (default: warning)",
+    )
+    scan.add_argument(
         "--github-annotations", action="store_true", help="emit GitHub Actions annotations (requires --diff and --output)",
     )
 
@@ -50,7 +54,7 @@ def write_stdout(payload: str) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    report = Report()
+    report = Report(fail_on=args.fail_on) if args.command == "scan" else Report()
     try:
         if args.command == "audit":
             audit_requirements(report, args.requirements)

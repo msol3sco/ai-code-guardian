@@ -8,7 +8,7 @@
 | ACG101 | Python `eval` or `exec` | Call line |
 | ACG102 | Python `os.system`, `os.popen`, or a supported `subprocess` call with literal `shell=True` | Call or literal flag line |
 | ACG103 | Python `pickle.load` or `pickle.loads` (also `_pickle`) | Call line |
-| ACG104 | Supported Python `requests` call with literal `verify=False` | Call or literal flag line |
+| ACG104 | Supported `requests` or Session request with literal `verify=False`, or `session.verify = False` | Call, assignment target, or literal flag line |
 | ACG201 | Known PyPI advisory for an explicitly pinned package | Requirements line |
 
 For a flagged call with a literal keyword on a separate line, changed-lines mode
@@ -22,6 +22,12 @@ obvious placeholder values. Credential formats are checked locally and may
 match fabricated examples or historical values.
 
 The Python checks recognize a small set of direct and aliased imports. They do
-not model Python scope or runtime rebinding and cannot infer dynamic values,
-data flow, or call reachability. Secret scanning still runs when Python cannot
-be parsed by the interpreter in use.
+not infer dynamic values, data flow, or call reachability. Secret scanning
+still runs when Python cannot be parsed by the interpreter in use.
+
+For ACG104, Guardian recognizes Sessions created by `requests.Session()` or
+`requests.session()`, including imported factory aliases, direct calls on a
+new Session, simple variables, and `with` bindings. It resolves Session names
+with a single recognizable binding in their scope. Factory wrappers, attribute
+chains such as `self.client`, and ambiguously rebound names are outside this
+check. A custom CA bundle path and literal `verify=True` produce no TLS warning.

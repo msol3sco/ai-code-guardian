@@ -4,6 +4,7 @@ from bisect import bisect_right
 from pathlib import PurePosixPath
 
 from .model import Finding, Report
+from .session_tls import REQUEST_METHODS, disabled_verify_line, session_tls_findings
 
 PRIVATE_KEY = re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----")
 PROVIDER_TOKEN = re.compile(
@@ -29,7 +30,6 @@ SUBPROCESS_CALLS = {
     "subprocess.run", "subprocess.Popen", "subprocess.call",
     "subprocess.check_call", "subprocess.check_output",
 }
-REQUEST_METHODS = {"delete", "get", "head", "options", "patch", "post", "put", "request"}
 
 
 def looks_like_secret(value: str) -> bool:
@@ -80,13 +80,10 @@ def matching_call(node: ast.Call, name: str) -> tuple[str, int] | None:
             continue
         if name in SUBPROCESS_CALLS and keyword.arg == "shell" and keyword.value.value is True:
             return "ACG102", keyword.value.lineno
-        if (
-            name.removeprefix("requests.") in REQUEST_METHODS
-            and name.startswith("requests.")
-            and keyword.arg == "verify"
-            and keyword.value.value is False
-        ):
-            return "ACG104", keyword.value.lineno
+    if name.startswith("requests.") and name.removeprefix("requests.") in REQUEST_METHODS:
+        verify_line = disabled_verify_line(node)
+        if verify_line is not None:
+            return "ACG104", verify_line
     return None
 
 
@@ -136,4 +133,12 @@ def inspect_source(
                         rule_id, evidence_line = match
                         line = evidence_line if is_changed(evidence_line) else node.func.lineno
                         add(rule_id, line)
+            try:
+                session_findings = session_tls_findings(tree)
+            except RecursionError:
+                report.notes.append(f"Requests Session checks skipped for {path} (Python source nesting is too deep).")
+            else:
+                for evidence_line, target_line in session_findings:
+                    if is_changed(evidence_line) or is_changed(target_line):
+                        add("ACG104", evidence_line if is_changed(evidence_line) else target_line)
     report.findings.extend(sorted(found))

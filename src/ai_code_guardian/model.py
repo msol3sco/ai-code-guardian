@@ -49,6 +49,7 @@ class Report:
     files_scanned: int = 0
     files_skipped: int = 0
     suppressed_findings: int = 0
+    fail_on: str = "warning"
 
     def skip(self, reason: str) -> None:
         self.files_skipped += 1
@@ -58,4 +59,6 @@ class Report:
     def exit_code(self) -> int:
         if self.errors:
             return 2
+        if self.fail_on == "error":
+            return int(any(finding.severity == "error" for finding in self.findings))
         return int(bool(self.findings))
