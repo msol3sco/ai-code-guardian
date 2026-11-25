@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - run: python -m pip install "git+https://github.com/OWNER/ai-code-guardian.git@FULL_COMMIT_SHA"
+      - run: python -I -m pip install "git+https://github.com/OWNER/ai-code-guardian.git@FULL_COMMIT_SHA"
       - name: Scan pull request
         id: guardian
         env:
