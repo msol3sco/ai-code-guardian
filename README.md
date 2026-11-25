@@ -121,6 +121,9 @@ GitHub Actions commands. GitHub permits up to 10 warning and 10 error
 annotations per step. The SARIF file remains downloadable for all
 unsuppressed findings. See the [verification steps](examples/README.md).
 
+For a before-and-after example with public check runs and a SARIF excerpt,
+see the [reproducible GitHub Actions demo](docs/demo.md).
+
 ## Privacy and limitations
 
 - Source scanning runs on the machine or CI runner you choose. It sends no
