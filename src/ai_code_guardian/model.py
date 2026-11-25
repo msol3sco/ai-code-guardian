@@ -30,10 +30,15 @@ class Finding:
     line: int
     rule_id: str
     detail: str = ""
+    override_level: str | None = field(default=None, compare=False)
 
     @property
     def rule(self) -> Rule:
         return RULES[self.rule_id]
+
+    @property
+    def severity(self) -> str:
+        return self.override_level or self.rule.severity
 
 
 @dataclass
@@ -43,6 +48,7 @@ class Report:
     errors: list[str] = field(default_factory=list)
     files_scanned: int = 0
     files_skipped: int = 0
+    suppressed_findings: int = 0
 
     def skip(self, reason: str) -> None:
         self.files_skipped += 1
