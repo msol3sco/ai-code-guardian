@@ -65,3 +65,11 @@ The first scan should return 1 and report `ACG104` at
 `src/status_relay/probes.py:26`. The corrected scan should
 return 0. The app's tests use mock responses throughout, and the scanner
 makes no requests to the health-check endpoints.
+
+## Guardian v1.2.0 release validation
+
+The [Windows / Python 3.12 job for the v1.2.0 tag](https://github.com/msol3sco/ai-code-guardian/actions/runs/45707782621/job/139534066858)
+installed Guardian from the tagged source. In the Guardian test step,
+`python -m unittest discover -s tests -v` reported `Ran 39 tests in 13.656s`
+followed by `OK`. The version check in the same job reported
+`ai-code-guardian 1.2.0`.
