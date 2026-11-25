@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0
+
+- Configure source rule levels in a repository policy or an explicit JSON file.
+- Add path-scoped exceptions with a reason, expiry date, and optional line.
+  Reports count suppressed findings and note expired exceptions.
+- Read policy from the base commit during diff scans so a proposed policy
+  change cannot silence findings in the same pull request.
+- Show changed-line annotations in GitHub pull request checks and retain the
+  SARIF artifact for the full report.
+
 ## 1.0.0
 
 - Scan UTF-8 files for common secret formats and selected unsafe Python calls.

@@ -173,3 +173,67 @@ class CliTests(unittest.TestCase):
         result = self.cli("scan", "--head", "HEAD")
         self.assertEqual(result.returncode, 2)
         self.assertIn("--head requires --diff", result.stderr)
+
+    def test_path_policy_uses_current_directory_as_pattern_anchor(self):
+        self.write("src/code.py", "eval(text)\nexec(text)\n")
+        self.write(".ai-code-guardian.json", json.dumps({
+            "suppressions": [{
+                "rule": "ACG101", "path": "src/*.py", "line": 2,
+                "reason": "known review fixture", "expires": "2099-01-01",
+            }],
+        }))
+        for target, reported in (("src", "code.py"), ("src/code.py", "code.py"), (".", "src/code.py")):
+            with self.subTest(target=target):
+                report = self.scan("--path", target, status=1)
+                self.assertEqual(report["suppressed_findings"], 1)
+                self.assertEqual([(item["path"], item["line"]) for item in report["findings"]], [(reported, 1)])
+        error = self.scan("--config", "missing.json", status=2)
+        self.assertIn("policy file does not exist", error["errors"][0])
+
+    def test_staged_policy_comes_from_index_even_on_first_commit(self):
+        self.init_repo()
+        self.write("code.py", "eval(text)\n")
+        self.write(".ai-code-guardian.json", '{"rules":{"ACG101":"off"}}')
+        self.git("add", "--all")
+        self.write(".ai-code-guardian.json", "{}")
+        report = self.scan("--staged", status=0)
+        self.assertEqual(report["suppressed_findings"], 1)
+        self.assertEqual(self.scan("--staged", "--config", ".ai-code-guardian.json", status=1)["suppressed_findings"], 0)
+
+    def test_intent_to_add_policy_is_ignored_but_an_empty_staged_policy_fails(self):
+        self.init_repo()
+        self.write("code.py", "eval(text)\n")
+        self.write(".ai-code-guardian.json", '{"rules":{"ACG101":"off"}}')
+        self.git("add", "code.py")
+        self.git("add", "--intent-to-add", ".ai-code-guardian.json")
+        self.assertEqual(self.scan("--staged", status=1)["suppressed_findings"], 0)
+        self.write(".ai-code-guardian.json", "")
+        self.git("add", ".ai-code-guardian.json")
+        self.assertIn("valid UTF-8 JSON", self.scan("--staged", status=2)["errors"][0])
+
+    def test_diff_annotations_use_latest_base_policy_and_keep_full_report(self):
+        self.init_repo()
+        self.write("base.txt", "initial\n")
+        self.commit()
+        self.git("checkout", "-b", "feature")
+        self.write(".ai-code-guardian.json", '{"rules":{"ACG101":"off"}}')
+        self.write("review.py", "eval(text)\n")
+        self.commit()
+        self.git("checkout", "main")
+        self.write(".ai-code-guardian.json", '{"rules":{"ACG101":"error"}}')
+        self.commit()
+        self.write(".ai-code-guardian.json", "private invalid worktree policy")
+        run = self.cli(
+            "scan", "--diff", "main", "--head", "feature", "--github-annotations",
+            "--format", "sarif", "--output", "guardian.sarif",
+        )
+        self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
+        self.assertIn("::error file=review.py,line=1,title=ACG101", run.stdout)
+        sarif = json.loads((self.root / "guardian.sarif").read_bytes())
+        hits = sarif["runs"][0]["results"]
+        self.assertEqual([(item["ruleId"], item["level"]) for item in hits], [("ACG101", "error")])
+
+    def test_annotation_mode_requires_a_separate_report_file(self):
+        result = self.cli("scan", "--diff", "main", "--github-annotations")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("requires --diff BASE and --output FILE", result.stderr)

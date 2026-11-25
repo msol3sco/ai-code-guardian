@@ -1,0 +1,13 @@
+{
+  "rules": {
+    "ACG104": "error"
+  },
+  "suppressions": [
+    {
+      "rule": "ACG003",
+      "path": "tests/fixtures/**/*.txt",
+      "reason": "Synthetic credentials exercise the parser.",
+      "expires": "2027-12-31"
+    }
+  ]
+}

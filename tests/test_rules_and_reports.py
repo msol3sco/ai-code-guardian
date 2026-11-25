@@ -1,8 +1,8 @@
 import json
 import unittest
 
-from ai_code_guardian.model import Report
-from ai_code_guardian.reporting import render
+from ai_code_guardian.model import Finding, Report
+from ai_code_guardian.reporting import github_annotations, render
 from ai_code_guardian.rules import inspect_source
 
 
@@ -81,3 +81,15 @@ class RuleTests(unittest.TestCase):
         text = render(report, "text")
         self.assertIn("line\\nbreak.py:1:", text)
         self.assertEqual(len(text.splitlines()), 2)
+
+    def test_github_annotations_escape_paths_and_cap_each_level(self):
+        unusual = "weird%25,:\r\n::add-mask::fake.py"
+        findings = [Finding(unusual, 7, "ACG101")]
+        findings.extend(Finding("warn.py", line, "ACG101") for line in range(1, 13))
+        findings.extend(Finding("error.py", line, "ACG001") for line in range(1, 11))
+        text = github_annotations(Report(findings=findings, errors=["private diagnostic"]))
+        self.assertEqual(sum(line.startswith("::warning") for line in text.splitlines()), 10)
+        self.assertEqual(sum(line.startswith("::error") for line in text.splitlines()), 10)
+        self.assertIn("file=weird%2525%2C%3A%0D%0A%3A%3Aadd-mask%3A%3Afake.py,line=7", text)
+        self.assertNotIn("private diagnostic", text)
+        self.assertIn("4 finding(s) omitted", text)

@@ -50,6 +50,19 @@ mode reads the index even when the working tree contains different text.
 
 See the [worked example](examples/README.md) and the [rule reference](docs/rules.md).
 
+## Configure source rules
+
+Add a `.ai-code-guardian.json` file at the repository root to change
+rule levels or record scoped exceptions. Each exception has a reason and an
+expiry date. Reports count suppressed findings, and expired exceptions stop
+suppressing them automatically.
+
+Staged scans read the index policy. Diff scans read the policy from the
+specified base commit, so the proposed policy does not affect its own pull
+request scan. Full scans use the policy in the current directory. Use
+`--config FILE` to preview a local policy explicitly. See the
+[policy reference](docs/policy.md) for the format and examples.
+
 ## Audit pinned Python dependencies
 
 Install the optional audit extra into the same virtual environment. Supply a
@@ -84,7 +97,7 @@ new file with `--output`. The CLI refuses to overwrite an existing file.
 | --- | --- |
 | 0 | The checks completed with no findings. Review any skip notes for coverage. |
 | 1 | One or more findings, including warnings. |
-| 2 | Invalid usage, an I/O or Git error, or an incomplete audit. Inspect the errors before relying on the results. |
+| 2 | Invalid usage or policy, an I/O or Git error, or an incomplete audit. Inspect the errors before relying on the results. |
 
 Reports use one-based line numbers. Source findings include a relative file
 path, rule ID, severity, and remediation message. Audit findings also include
@@ -93,18 +106,20 @@ the package, version, and advisory ID.
 ## GitHub Actions
 
 This repository includes a [Guardian workflow](.github/workflows/guardian.yml)
-that installs the pull request's version of Guardian, scans changed lines of
-GitHub's pull request merge commit and uploads SARIF as an Actions artifact.
-The job fails for findings or scan errors. A separate
+that installs the pull request's version of Guardian and reviews changed
+lines at the pull request head. Findings appear as file-and-line annotations
+in the pull request's **Checks** tab and may also appear in **Files changed**.
+The workflow keeps the complete report as a SARIF artifact and fails for
+unsuppressed findings or scan errors. A separate
 [CI workflow](.github/workflows/ci.yml) tests and builds the package.
 
 To scan a different repository, copy the [consumer workflow](examples/guardian.yml)
 to that repository's `.github/workflows/guardian.yml`. Set the owner and full
-commit SHA of a trusted Guardian version. The example fetches full Git history
-to find the base and uses read-only repository permissions. The SARIF file
-is downloadable from the workflow run. To import a report as code scanning
-alerts, see [GitHub's SARIF upload instructions](https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/integrate-with-existing-tools/upload-sarif-file)
-for supported repositories and permissions.
+commit SHA of a trusted Guardian version 1.1.0 or later. The example runs on
+`pull_request` with read-only permissions, and annotations use standard
+GitHub Actions commands. GitHub permits up to 10 warning and 10 error
+annotations per step. The SARIF file remains downloadable for all
+unsuppressed findings. See the [verification steps](examples/README.md).
 
 ## Privacy and limitations
 

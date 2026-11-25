@@ -17,12 +17,14 @@ def visible(value: str) -> str:
 
 def text_report(report: Report) -> str:
     lines = [
-        f"{visible(item.path)}:{item.line}: {item.rule.severity} {item.rule_id} "
+        f"{visible(item.path)}:{item.line}: {item.severity} {item.rule_id} "
         f"{item.rule.message}{' ' + item.detail if item.detail else ''}"
         for item in report.findings
     ]
     lines.extend(f"Note: {visible(note)}" for note in report.notes)
     lines.extend(f"Error: {visible(error)}" for error in report.errors)
+    if report.suppressed_findings:
+        lines.append(f"{report.suppressed_findings} finding(s) suppressed by policy.")
     lines.append(
         f"{len(report.findings)} finding(s), {report.files_scanned} source file(s) scanned, "
         f"{report.files_skipped} file(s) skipped."
@@ -37,7 +39,7 @@ def json_report(report: Report) -> dict:
         "findings": [
             {
                 "rule_id": item.rule_id,
-                "severity": item.rule.severity,
+                "severity": item.severity,
                 "message": item.rule.message,
                 "path": item.path,
                 "line": item.line,
@@ -47,6 +49,7 @@ def json_report(report: Report) -> dict:
         ],
         "files_scanned": report.files_scanned,
         "files_skipped": report.files_skipped,
+        "suppressed_findings": report.suppressed_findings,
         "notes": report.notes,
         "errors": report.errors,
     }
@@ -62,6 +65,7 @@ def sarif_report(report: Report) -> dict:
         "$schema": SARIF_SCHEMA,
         "version": "2.1.0",
         "runs": [{
+            **({"properties": {"suppressed_findings": report.suppressed_findings}} if report.suppressed_findings else {}),
             "tool": {
                 "driver": {
                     "name": "AI Code Guardian",
@@ -85,7 +89,7 @@ def sarif_report(report: Report) -> dict:
             "results": [
                 {
                     "ruleId": item.rule_id,
-                    "level": item.rule.severity,
+                    "level": item.severity,
                     "message": {"text": " ".join(filter(None, (item.rule.message, item.detail)))},
                     "locations": [{
                         "physicalLocation": {
@@ -98,6 +102,41 @@ def sarif_report(report: Report) -> dict:
             ],
         }],
     }
+
+
+def github_escape(value: str, *, property_value: bool = False) -> str:
+    value = value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+    if property_value:
+        value = value.replace(":", "%3A").replace(",", "%2C")
+    return value
+
+
+def github_annotations(report: Report) -> str:
+    limits = {"error": 10, "warning": 10}
+    lines = []
+    if report.errors:
+        lines.append("::error title=Guardian scan incomplete::See the scan report for details.")
+        limits["error"] -= 1
+
+    omitted = 0
+    for item in report.findings:
+        level = item.severity
+        if limits[level] == 0:
+            omitted += 1
+            continue
+        path = github_escape(item.path, property_value=True)
+        title = github_escape(f"{item.rule_id} {item.rule.title}", property_value=True)
+        message = github_escape(item.rule.message)
+        lines.append(f"::{level} file={path},line={item.line},title={title}::{message}")
+        limits[level] -= 1
+
+    lines.append(
+        f"AI Code Guardian found {len(report.findings)} issue(s) and suppressed "
+        f"{report.suppressed_findings} finding(s) by policy."
+    )
+    if omitted:
+        lines.append(f"{omitted} finding(s) omitted from annotations. See the full scan report.")
+    return "\n".join(lines) + "\n"
 
 
 def render(report: Report, format_: str) -> str:
