@@ -50,6 +50,35 @@ mode reads the index even when the working tree contains different text.
 
 See the [worked example](examples/README.md) and the [rule reference](docs/rules.md).
 
+## Scan automatically before commits
+
+AI Code Guardian provides a [pre-commit](https://pre-commit.com/) hook for
+Python 3.10+ and pre-commit 3.2.0+. Add the following to the `repos` list in
+your repository's `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/msol3sco/ai-code-guardian
+    rev: v1.2.0
+    hooks:
+      - id: ai-code-guardian
+```
+
+Install the hook from your repository root:
+
+```sh
+python -m pip install pre-commit
+pre-commit install
+```
+
+The hook runs `scan --staged` when you commit and reads the Git index.
+By default, any unsuppressed finding stops the commit. To allow warning-only
+commits and still see their warnings, add `args: [--fail-on, error]` and
+`verbose: true` under the hook entry, as in the
+[example configuration](examples/pre-commit-config.yaml). Operational
+errors still stop the commit. For a full scan, run
+`ai-code-guardian scan --path .` directly.
+
 ## Configure source rules
 
 Add a `.ai-code-guardian.json` file at the repository root to change
@@ -95,9 +124,15 @@ new file with `--output`. The CLI refuses to overwrite an existing file.
 
 | Exit code | Meaning |
 | --- | --- |
-| 0 | The checks completed with no findings. Review any skip notes for coverage. |
-| 1 | One or more findings, including warnings. |
+| 0 | The checks completed without a finding at the selected failure level. Review any warnings and skip notes. |
+| 1 | At least one finding met the selected failure level. |
 | 2 | Invalid usage or policy, an I/O or Git error, or an incomplete audit. Inspect the errors before relying on the results. |
+
+Source scans default to `--fail-on warning`, which fails on any unsuppressed
+finding. With `--fail-on error`, warnings stay in reports and GitHub
+annotations. Severity comes from the rule or repository policy, and the
+threshold only changes the exit code. The separate `audit` command exits
+with 1 when it finds a dependency advisory.
 
 Reports use one-based line numbers. Source findings include a relative file
 path, rule ID, severity, and remediation message. Audit findings also include

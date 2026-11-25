@@ -1,0 +1,8 @@
+- id: ai-code-guardian
+  name: AI Code Guardian (staged lines)
+  entry: ai-code-guardian scan --staged
+  language: python
+  pass_filenames: false
+  always_run: true
+  stages: [pre-commit]
+  minimum_pre_commit_version: "3.2.0"

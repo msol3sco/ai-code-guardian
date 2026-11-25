@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- Detect literal TLS verification disablement on recognized Requests Sessions,
+  both on individual calls and on the Session's default settings.
+- Add a pre-commit hook that scans staged lines directly from the Git index.
+- Add `scan --fail-on error` to keep warnings in reports while reserving
+  finding-related failures for errors. The default still fails on warnings.
+
 ## 1.1.0
 
 - Configure source rule levels in a repository policy or an explicit JSON file.

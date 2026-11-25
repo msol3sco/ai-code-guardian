@@ -1,0 +1,7 @@
+repos:
+  - repo: https://github.com/msol3sco/ai-code-guardian
+    rev: v1.2.0
+    hooks:
+      - id: ai-code-guardian
+        args: [--fail-on, error]
+        verbose: true

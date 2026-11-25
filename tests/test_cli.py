@@ -237,3 +237,43 @@ class CliTests(unittest.TestCase):
         result = self.cli("scan", "--diff", "main", "--github-annotations")
         self.assertEqual(result.returncode, 2)
         self.assertIn("requires --diff BASE and --output FILE", result.stderr)
+
+    def test_staged_session_default_comes_from_index(self):
+        self.init_repo()
+        source = "import requests\nclient = requests.Session()\nclient.verify = (\n    True\n)\n"
+        self.write("probe.py", source)
+        self.commit()
+        self.write("probe.py", source.replace("True", "False"))
+        self.git("add", "probe.py")
+        self.write("probe.py", source)
+        report = self.scan("--staged", status=1)
+        self.assertEqual(
+            [(item["rule_id"], item["line"]) for item in report["findings"]],
+            [("ACG104", 4)],
+        )
+
+    def test_error_threshold_retains_warnings_and_sarif_exit_code(self):
+        self.write("probe.py", "import requests\ns = requests.Session()\ns.get(url, verify=False)\n")
+        strict = self.scan("--path", "probe.py", status=1)
+        self.assertEqual(strict["findings"][0]["severity"], "warning")
+
+        result = self.cli("scan", "--path", "probe.py", "--fail-on", "error", "--format", "sarif")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        sarif = json.loads(result.stdout)["runs"][0]
+        self.assertEqual(sarif["invocations"][0]["exitCode"], 0)
+        self.assertEqual([(item["ruleId"], item["level"]) for item in sarif["results"]], [("ACG104", "warning")])
+
+    def test_error_threshold_respects_staged_policy_and_operational_errors(self):
+        self.init_repo()
+        self.write("probe.py", "import requests\ns = requests.Session()\ns.verify = False\n")
+        self.write(".ai-code-guardian.json", "{}")
+        self.git("add", "--all")
+        self.assertEqual(self.scan("--staged", "--fail-on", "error", status=0)["findings"][0]["severity"], "warning")
+
+        self.write(".ai-code-guardian.json", '{"rules":{"ACG104":"error"}}')
+        self.git("add", ".ai-code-guardian.json")
+        self.assertEqual(self.scan("--staged", "--fail-on", "error", status=1)["findings"][0]["severity"], "error")
+
+        self.write(".ai-code-guardian.json", "{")
+        self.git("add", ".ai-code-guardian.json")
+        self.assertTrue(self.scan("--staged", "--fail-on", "error", status=2)["errors"])

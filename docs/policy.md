@@ -24,8 +24,9 @@ adapt its rule IDs, paths, reasons, and expiry dates.
 ## Rules and exceptions
 
 - `rules` maps [source rule IDs](rules.md) to `warning`, `error`, or `off`.
-  Omitted rules keep their default severity. Both warnings and errors count as
-  findings and result in exit code 1. Use `off` for a deliberate repository-wide
+  Omitted rules keep their default severity. Source scans fail on both warnings
+  and errors by default. With `--fail-on error`, a warning is still reported
+  and only errors trigger code 1. Use `off` for a deliberate repository-wide
   disablement.
 - Each `suppressions` entry requires a source rule ID, a path pattern, a
   non-empty reason and a date in `YYYY-MM-DD` format. It matches until the
