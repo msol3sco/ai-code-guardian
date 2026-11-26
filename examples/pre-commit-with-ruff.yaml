@@ -1,0 +1,13 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.6
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+  - repo: https://github.com/msol3sco/ai-code-guardian
+    rev: v1.2.0
+    hooks:
+      - id: ai-code-guardian
+        args: [--fail-on, error]
+        verbose: true
