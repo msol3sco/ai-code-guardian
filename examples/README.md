@@ -43,3 +43,14 @@ and push the correction, or close the test pull request.
 
 To try repository settings, see the [example policy](policy.json) and
 the [policy reference](../docs/policy.md).
+
+## Add Guardian to an existing pre-commit setup
+
+If your repository already has a `.pre-commit-config.yaml`, keep its
+existing entries and append the Guardian repository to the same `repos`
+list. The [Ruff example](pre-commit-with-ruff.yaml) shows Ruff linting and
+formatting followed by Guardian, with each hook pinned to a released tag.
+Run `pre-commit validate-config .pre-commit-config.yaml` to check the
+result, then `pre-commit install` if the hooks are not installed yet.
+Guardian scans the staged lines, so if Ruff rewrites a file, stage its
+changes and commit again.
